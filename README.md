@@ -9,6 +9,9 @@ This is a coding test done for Automated Insights.
 ## Run project locally
 - Run `yarn start`
 
+## To Do
+- Disable higher/lower buttons until guess calculation is complete
+
 ## Assumptions
 - If the same value card is drawn, it counts as a correct guess
 
