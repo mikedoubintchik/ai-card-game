@@ -18,7 +18,8 @@ export default class Game extends Component {
         1: 0,
         2: 0
       },
-      disableButtons: true
+      disableHiLoButtons: true,
+      disableDrawButton: false
     };
   }
 
@@ -49,15 +50,18 @@ export default class Game extends Component {
    * Draw a card from the deck
    */
   drawNewCard = () => {
-    this.setState(prevState => ({
-      drawnCards: [
-        ...prevState.drawnCards,
-        prevState.cards[prevState.cards.length - 1]
-      ],
-      cards: [...prevState.cards.slice(0, -1)],
-      previousCard: prevState.cards[prevState.cards.length - 1],
-      disableButtons: false
-    }))
+    this.setState(prevState => {
+      const drawnCards = [...prevState.drawnCards, prevState.cards[prevState.cards.length - 1]]
+
+      return ({
+        drawnCards,
+        cards: [...prevState.cards.slice(0, -1)],
+        previousCard: prevState.cards[prevState.cards.length - 1]
+      })
+    }, () => {
+      // after first draw in round is made, enable hi/lo buttons
+      if (this.state.drawnCards.length === 1) this.setState({disableHiLoButtons: false})
+    })
   }
 
   /**
@@ -100,7 +104,8 @@ export default class Game extends Component {
    */
   handleCorrectGuess = () => {
     this.setState(prevState => ({
-      currentCorrectGuesses: prevState.currentCorrectGuesses += 1
+      currentCorrectGuesses: prevState.currentCorrectGuesses += 1,
+      disableHiLoButtons: false
     }));
   }
 
@@ -114,14 +119,17 @@ export default class Game extends Component {
     this.setState({
       previousCard: {},
       currentCorrectGuesses: 0,
+      disableHiLoButtons: true,
+      disableDrawButton: true
     });
 
+    // show last drawn card for 1 second before resetting the round
     setTimeout(() => {
       this.setState({
         drawnCards: [],
-        disableButtons: true
+        disableDrawButton: false
       })
-    }, 1000)
+    }, 2000)
   }
 
   /**
@@ -163,9 +171,11 @@ export default class Game extends Component {
     const {previousCard} = this.state;
     const currentGuess = event.target.value
 
-    // this.setState({disableButtons: true})
-
-    this.setState({currentGuess})
+    // disable higher/lower button temporarily and set correct current
+    this.setState({
+      disableHiLoButtons: true,
+      currentGuess
+    })
 
     this.drawNewCard()
 
@@ -202,9 +212,15 @@ export default class Game extends Component {
   }
 
   render() {
-    const {cards, drawnCards, playerTurn, score, currentGuess, currentCorrectGuesses, disableButtons} = this.state;
+    const {cards, drawnCards, playerTurn, score, currentGuess, currentCorrectGuesses, previousCard, disableDrawButton, disableHiLoButtons} = this.state;
     const currentPlayer = (playerTurn === 1) ? 2 : 1;
-    const buttonsDisabled = (cards.length <= 0 || cards.length === 52 || disableButtons)
+
+    // disable hi/lo buttons at the beginning/end of game or on certain conditions of state
+    const hiloButtonsDisabled = (cards.length <= 0 || cards.length === 52 || disableHiLoButtons)
+    // disable draw button at the end of game or when a previous card exists or when hi/lo button is disabled or on certain state conditions
+    const drawButtonDisabled = (cards.length <= 0) || (Object.entries(previousCard).length !== 0) || !hiloButtonsDisabled || disableDrawButton
+    // disable draw button at the end of game or when there are less than 3 correct guesses
+    const passButtonDisabled = (cards.length <= 0) || (currentCorrectGuesses < 3)
 
     let cardDisplay = ''
     if (drawnCards.length > 0 && cards.length !== 0) {
@@ -219,7 +235,7 @@ export default class Game extends Component {
       cardDisplay = <h1>{this.calculateWinner()}</h1>
     }
 
-    console.log(disableButtons)
+    console.log(this.state)
 
     return (
       <div className="Game">
@@ -232,37 +248,37 @@ export default class Game extends Component {
 
         <div className="Game-btn-container">
           <button
-            className={"Game-btn" + (buttonsDisabled ? ' hidden' : '')}
+            className={"Game-btn" + (hiloButtonsDisabled ? ' hidden' : '')}
             value="higher"
             onClick={this.handleGuess}
-            disabled={buttonsDisabled}
+            disabled={hiloButtonsDisabled}
           >
             Higher
           </button>
 
           <button
-            className={"Game-btn" + (currentCorrectGuesses < 3 ? ' hidden' : '')}
+            className={"Game-btn" + (passButtonDisabled ? ' hidden' : '')}
             value="higher"
             onClick={this.handlePass}
-            disabled={buttonsDisabled}
+            disabled={passButtonDisabled}
           >
             Pass
           </button>
 
           <button
-            className={"Game-btn" + (!buttonsDisabled || cards.length <= 0 ? ' hidden' : '')}
+            className={"Game-btn" + (drawButtonDisabled ? ' hidden' : '')}
             value="higher"
             onClick={this.drawNewCard}
-            disabled={!buttonsDisabled}
+            disabled={drawButtonDisabled}
           >
             Draw
           </button>
 
           <button
-            className={"Game-btn" + (buttonsDisabled ? ' hidden' : '')}
+            className={"Game-btn" + (hiloButtonsDisabled ? ' hidden' : '')}
             value="lower"
             onClick={this.handleGuess}
-            disabled={buttonsDisabled}
+            disabled={hiloButtonsDisabled}
           >
             Lower
           </button>
