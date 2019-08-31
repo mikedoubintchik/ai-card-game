@@ -76,9 +76,9 @@ export default class Game extends Component {
   }
 
   /**
-   * Calculate points
+   * Set points
    */
-  calculatePoints = () => {
+  setPoints = () => {
     const {playerTurn, drawnCards} = this.state
 
     this.setState(prevState => ({
@@ -115,8 +115,7 @@ export default class Game extends Component {
    * Handle a wrong guess
    */
   handleWrongGuess = () => {
-    this.togglePlayerTurn()
-    this.calculatePoints()
+    this.setPoints()
 
     this.setState({
       previousCard: null,
@@ -132,6 +131,8 @@ export default class Game extends Component {
         disableDrawButton: false
       })
     }, 2000)
+
+    this.togglePlayerTurn()
   }
 
   /**
