@@ -1,6 +1,7 @@
 import React, {Component} from "react";
 import Card from "../Card/Card";
 import axios from "axios";
+import debounce from 'lodash/debounce';
 import "./Game.scss";
 import {API_URL, cardValueLookup} from "../../constants/config"
 
@@ -10,7 +11,7 @@ export default class Game extends Component {
     this.state = {
       cards: [],
       drawnCards: [],
-      previousCard: {},
+      previousCard: null,
       currentGuess: '',
       currentCorrectGuesses: 0,
       playerTurn: 1,
@@ -49,14 +50,15 @@ export default class Game extends Component {
   /**
    * Draw a card from the deck
    */
-  drawNewCard = () => {
-    this.setState(prevState => {
+  drawNewCard = async () => {
+    await this.setState(prevState => {
       const drawnCards = [...prevState.drawnCards, prevState.cards[prevState.cards.length - 1]]
+      const previousCard = drawnCards.length > 1 ? drawnCards[drawnCards.length - 2] : null
 
       return ({
-        drawnCards,
         cards: [...prevState.cards.slice(0, -1)],
-        previousCard: prevState.cards[prevState.cards.length - 1]
+        drawnCards,
+        previousCard
       })
     }, () => {
       // after first draw in round is made, enable hi/lo buttons
@@ -82,7 +84,7 @@ export default class Game extends Component {
     this.setState(prevState => ({
       score: {
         ...prevState.score,
-        [playerTurn]: prevState.score[playerTurn] += drawnCards.length
+        [playerTurn]: prevState.score[playerTurn] += drawnCards.length - 1
       }
     }));
   }
@@ -117,13 +119,13 @@ export default class Game extends Component {
     this.calculatePoints()
 
     this.setState({
-      previousCard: {},
+      previousCard: null,
       currentCorrectGuesses: 0,
       disableHiLoButtons: true,
       disableDrawButton: true
     });
 
-    // show last drawn card for 1 second before resetting the round
+    // show last drawn card for 2 seconds before resetting the round
     setTimeout(() => {
       this.setState({
         drawnCards: [],
@@ -139,11 +141,8 @@ export default class Game extends Component {
    * @returns {string|boolean}
    */
   isGuessCorrect = (currentGuess) => {
-    const {cards, previousCard} = this.state
-    const currentCard = cards[cards.length - 1]
-
-    // if no previous card, means it's the first draw
-    if (!previousCard) return
+    const {previousCard, drawnCards} = this.state
+    const currentCard = drawnCards[drawnCards.length - 1]
 
     // correct guess
     if (
@@ -165,12 +164,9 @@ export default class Game extends Component {
   /**
    * Handle a guess
    *
-   * @param event
+   * @param currentGuess
    */
-  handleGuess = (event) => {
-    const {previousCard} = this.state;
-    const currentGuess = event.target.value
-
+  handleGuess = debounce((currentGuess) => {
     // disable higher/lower button temporarily and set correct current
     this.setState({
       disableHiLoButtons: true,
@@ -178,18 +174,15 @@ export default class Game extends Component {
     })
 
     this.drawNewCard()
-
-    // if a card was drawn previously and there is a current guess, calculate answer
-    if (previousCard && currentGuess) {
-      this.isGuessCorrect(currentGuess)
-    }
-  }
+      .then(() => this.isGuessCorrect(currentGuess))
+  }, 500)
 
   /**
    * Handle a pass
    */
   handlePass = () => {
     this.togglePlayerTurn()
+
     this.setState({
       currentGuess: '',
       currentCorrectGuesses: 0
@@ -201,10 +194,11 @@ export default class Game extends Component {
    */
   resetGame = () => {
     this.getDeck()
+
     this.setState({
       cards: [],
       drawnCards: [],
-      previousCard: {},
+      previousCard: null,
       currentGuess: '',
       playerTurn: 1,
       score: {1: 0, 2: 0}
@@ -218,7 +212,7 @@ export default class Game extends Component {
     // disable hi/lo buttons at the beginning/end of game or on certain conditions of state
     const hiloButtonsDisabled = (cards.length <= 0 || cards.length === 52 || disableHiLoButtons)
     // disable draw button at the end of game or when a previous card exists or when hi/lo button is disabled or on certain state conditions
-    const drawButtonDisabled = (cards.length <= 0) || (Object.entries(previousCard).length !== 0) || !hiloButtonsDisabled || disableDrawButton
+    const drawButtonDisabled = (cards.length <= 0) || previousCard || !hiloButtonsDisabled || disableDrawButton
     // disable draw button at the end of game or when there are less than 3 correct guesses
     const passButtonDisabled = (cards.length <= 0) || (currentCorrectGuesses < 3)
 
@@ -235,8 +229,6 @@ export default class Game extends Component {
       cardDisplay = <h1>{this.calculateWinner()}</h1>
     }
 
-    console.log(this.state)
-
     return (
       <div className="Game">
         <h1 className="Game-title">High / Low Card Game</h1>
@@ -250,7 +242,7 @@ export default class Game extends Component {
           <button
             className={"Game-btn" + (hiloButtonsDisabled ? ' hidden' : '')}
             value="higher"
-            onClick={this.handleGuess}
+            onClick={(e) => this.handleGuess(e.target.value)}
             disabled={hiloButtonsDisabled}
           >
             Higher
@@ -277,7 +269,7 @@ export default class Game extends Component {
           <button
             className={"Game-btn" + (hiloButtonsDisabled ? ' hidden' : '')}
             value="lower"
-            onClick={this.handleGuess}
+            onClick={(e) => this.handleGuess(e.target.value)}
             disabled={hiloButtonsDisabled}
           >
             Lower
