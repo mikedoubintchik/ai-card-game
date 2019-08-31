@@ -16,3 +16,4 @@ This is a coding test done for Automated Insights.
 - Check for prop types
 - Add 100% test coverage, where possible
 - Spend more time considering code organization, abstraction
+- Investigate bundle size and find ways to make it smaller
